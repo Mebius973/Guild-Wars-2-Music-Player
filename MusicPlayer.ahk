@@ -6,6 +6,7 @@ SetWorkingDir, %A_ScriptDir%
 Init:
 Instruments := ListInstruments()
 
+DisplayedSongs := []
 Songs := []
 For key, value in Instruments
 {
@@ -13,21 +14,72 @@ For key, value in Instruments
 }
 
 Gui, New,, "Guild Wars 2 Music Player"
-Gui, Add, ListView, r20 w720 Sort Grid gPlaySong, Name|Instrument
+Gosub, MakeInstrumentsButtons
+Gosub, MakeListView
 
-For instrument, instrumentSongs in Songs
-{
-    OutputDebug, % instrument
-    for index, song in instrumentSongs
+Gui +Resize
+Gui, show
+Return
+
+MakeInstrumentsButtons:
+    array := []
+    Loop, Files, Images\*.png, FR
     {
-        LV_Add("", song, instrument)
+        name := SubStr(A_LoopFileName, 1 , StrLen(A_LoopFileName) - StrLen(A_LoopFileExt) - 1)
+        array.Push(name)
     }
-}   
-LV_ModifyCol(1)
-LV_ModifyCol(2, 65)
 
-gui, show
-return
+    For index, image in array
+    {
+        name := array[index]
+        opt := ""
+
+        if (index > 1) {
+            opt := "ym"
+        }
+        Gui, Add, Picture, %opt% w50 h-1 gButtonWithPicture v%name%, Images\%name%.png
+    }
+    
+    Gui, Add, Button, ym h50 gClearFilter, Clear Filter
+Return
+
+ClearFilter:
+    Gosub, AddAllSongs
+Return
+
+ButtonWithPicture:
+    LV_Delete()
+    DisplayedSongs := []
+    For instrument, instrumentSongs in Songs
+    {
+        if (instrument == A_GuiControl) {
+            For index, song in instrumentSongs
+            {
+                LV_Add("", song, instrument)
+                DisplayedSongs.Push(song)
+            }
+        }
+    }
+Return
+
+MakeListView:
+    Gui, Add, ListView, x10 r20 w325 Sort Grid BackgroundE1E1E1 gPlaySong vPlaySong, Name|Instrument
+    Gosub, AddAllSongs
+    LV_ModifyCol(1)
+    LV_ModifyCol(2, 65)
+Return
+
+AddAllSongs:
+    DisplayedSongs := []
+    For instrument, instrumentSongs in Songs
+    {
+        For index, song in instrumentSongs
+        {
+            LV_Add("", song, instrument)
+            DisplayedSongs.Push(song)
+        }
+    }
+Return
 
 PlaySong:
 if (A_GuiEvent = "DoubleClick")  ; There are many other possible values the script can check.
@@ -46,7 +98,17 @@ if (A_GuiEvent = "DoubleClick")  ; There are many other possible values the scri
     if ErrorLevel
         MsgBox Could not open "%FileDir%\%FileName%".
 }
-return
+Return
+
+GuiSize:  ; Expand or shrink the ListView in response to the user's resizing of the window.
+if (A_EventInfo = 1)  ; The window has been minimized. No action needed.
+    Return
+; Otherwise, the window has been resized or maximized. Resize the ListView to match.
+GuiControl, Move, PlaySong, % "W" . (A_GuiWidth - 20) . " H" . (A_GuiHeight - 50)
+Return
+
+GuiClose:  ; Indicate that the script should exit automatically when the window is closed.
+ExitApp
 
 ListInstruments()
 {
@@ -54,7 +116,7 @@ ListInstruments()
     Loop, Files, *, D
     {
         
-        if SubStr(A_LoopFileName, 1, 1) != . {
+        if (SubStr(A_LoopFileName, 1, 1) != .) && (A_LoopFileName != "Images") {
             array.Push(A_LoopFileName)
         }
     }
